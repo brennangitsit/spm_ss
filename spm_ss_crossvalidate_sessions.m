@@ -2,6 +2,7 @@ function [SPM,allIc,validsessions,nsess,txt]=spm_ss_crossvalidate_sessions(SPM,I
 % SPM_SS_CROSSVALIDATE_SESSIONS
 % breaks down selected contrasts by sessions
 % (one possible way to orthogonalize contrasts)
+% See Fedorenko and Nieto-Castanon, 2012
 %
 % For each initial contrast, SPM_SS_CROSSVALIDATE_SESSIONS creates and
 % estimates several new contrasts:

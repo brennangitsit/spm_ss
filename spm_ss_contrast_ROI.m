@@ -14,7 +14,7 @@ if nargin<1,
     ss.swd=fileparts(P);
 end
 if nargin<2,
-    ssIc=1:numel(ss.C);
+    ssIc=1:numel(ss.C);                                                     % ss.C lists each contrast twice
 end
 if nargin<3,
     overwrite=1;
@@ -87,13 +87,13 @@ for nIc=1:numel(ssIc),
         Nc0=rank(ss.X*ss.C(Ic).between');
         Ns=rank(ss.C(Ic).within);
         Fplane=nan+zeros(1,nrois);Pplane=nan+zeros(1,nrois);Hplane=nan+zeros([Nh,nrois]);DOFplane=zeros(1,nrois);Eplane=nan+zeros([Nh,nrois]);
-        fprintf(['Estimating contrast #',num2str(Ic)]);
+        fprintf(['Estimating contrast #',num2str(Ic)]);                     % This always estimates each contrast twice (???)
         for nroi=1:nrois,
             fprintf('.');
             B=ss.estimate.beta(:,:,nroi);
             W=ss.estimate.whitening(:,nroi);
             E=ss.estimate.rss(:,:,nroi);
-            dof=(sum(W,1).^2)./max(eps,sum(W.^2,1));%Welch–Satterthwaite
+            dof=(sum(W,1).^2)./max(eps,sum(W.^2,1));% WelchÂ–Satterthwaite
             if ~any(any(isnan(B),1),2) && ~any(any(isnan(E))),% && dof-Nx>2,
                 x=ss.X.*W(:,ones(1,Nb));
                 b=B;

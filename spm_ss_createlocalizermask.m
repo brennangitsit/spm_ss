@@ -13,7 +13,11 @@ if nargin<6,thr=[];end
 if nargin<7||isempty(conjunction_type),conjunction_type='and'; end
 if nargin<8,options='';end
 if nargin<9,optionROIs='';end
-if ~isempty(thr_type)&&ischar(thr_type)&&isempty(strmatch(thr_type,{'FDR','FWE','none','percentile-whole-brain','percentile-ROI-level','Nvoxels-whole-brain','Nvoxels-ROI-level'},'exact')),return;end
+if ~isempty(thr_type)&&ischar(thr_type)&&isempty(strmatch(thr_type,{ ...
+        'FDR','FWE','none','percentile-whole-brain','percentile-ROI-level', ...
+        'Nvoxels-whole-brain','Nvoxels-ROI-level'},'exact')),
+    return;
+end
 maskfilename={};
 if ~iscell(thr_type),thr_type=cellstr(thr_type); end
 if ~isempty(optionROIs), optionROIs=spm_vol(optionROIs); end
@@ -24,7 +28,7 @@ try
         msg1=base2dec(regexprep(msg,'[^012345678]',''),8);
         msg2=base2dec(filemask_options,8);
         if bitand(msg1,intmax-msg2)
-            fprintf('warning: unexpected file mode creation mask. Mask set to %s. Use system-command ''umask %s'' to revert this change\n',dec2base(bitand(msg1,msg2),8),dec2base(msg1,8));
+            fprintf('Warning: unexpected file mode creation mask. Mask set to %s. Use system-command ''umask %s'' to revert this change\n',dec2base(bitand(msg1,msg2),8),dec2base(msg1,8));
             [nill,msg]=system(sprintf('umask %s',dec2base(bitand(msg1,msg2),8)));
         end
     end
@@ -557,7 +561,4 @@ else % CONJUNCTION MIN/MAX/PROD/SUM
     end
 end
 end
-
-
-
 

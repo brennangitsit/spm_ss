@@ -1,4 +1,4 @@
-function varargout=spm_ss(varargin)
+function varargout=spm_ss(varargin)                                         % the function varargout takes the spm_ss of varargin (?)
 % SPM_SS Subject-specific analysis GUI
 %
 % see SPM_SS_DESIGN, SPM_SS_ESTIMATE, SPM_SS_RESULTS, SPM_SS_DISPLAY
@@ -11,7 +11,7 @@ function varargout=spm_ss(varargin)
 
 spm_ss_ver='18.a';
 
-if nargin>0, 
+if nargin>0,                                                                % 
     %disp(varargin); 
     if ischar(varargin{1}),
         switch(lower(varargin{1}))

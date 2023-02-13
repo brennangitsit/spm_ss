@@ -41,6 +41,7 @@ function ss=spm_ss_design(ss)
 % spm_ss initialization
 spm_ss init silent;
 
+% if no arguments in ss structure, start GUI as new 
 initestimation=0;
 posstr=1;
 if nargin<1, 
@@ -65,6 +66,8 @@ if nargin<1,
         ss.ask='all';
     end
 end
+
+% if files_selectmanually and ask are unspecified, then assume default values
 if ~isfield(ss,'files_selectmanually')||isempty(ss.files_selectmanually), ss.files_selectmanually=0;end
 if ~isfield(ss,'ask')||isempty(ss.ask), 
     ss.ask='missing'; ss.askn=1;
@@ -76,6 +79,7 @@ else
     ss.askn=typesn(sstype);
 end
 
+% specify type of GcSS analysis 
 if ss.askn>1||~isfield(ss,'type')||isempty(ss.type), 
     types={'voxel','GcSS','automaticROI','aROI','manualROI','mROI','fROI','ROI'};typesn=[1,2,2,2,3,3,2,2];
     if ~isfield(ss,'type')||isempty(ss.type), sstype=2; else sstype=typesn(strmatch(lower(ss.type),lower(types),'exact')); end
@@ -106,7 +110,7 @@ else
     end
 end
 
-
+% selects files_spm array as the subject files to use or requires user to select files manually via GUI 
 if ~ss.files_selectmanually,
     if isfield(ss,'files_spm')&&~isempty(ss.files_spm)&&(~isfield(ss,'EffectOfInterest_spm')||isempty(ss.EffectOfInterest_spm)||~isfield(ss,'Localizer_spm')||isempty(ss.Localizer_spm)),% batch files_spm use
         ss.EffectOfInterest_spm=ss.files_spm;
@@ -169,6 +173,7 @@ if ss.files_selectmanually,
     end
 end
 
+% select effect of interest & localizer contrasts 
 default_cRcontrast={};
 default_cRname={};
 if ss.askn>1||~isfield(ss,'EffectOfInterest')||isempty(ss.EffectOfInterest),
@@ -189,7 +194,7 @@ if ss.askn>1||~isfield(ss,'EffectOfInterest')||isempty(ss.EffectOfInterest),
         while nc<=size(ss.EffectOfInterest_spm,1),
             current_spm=ss.EffectOfInterest_spm{min(size(ss.EffectOfInterest_spm,1),nc),1};
             [spm_data,SPM,Ec(nc)]=spm_ss_importspm(spm_data,current_spm);
-            if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('warning: no target contrasts found inside %s\n',current_spm);
+            if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('Warning: no target contrasts found inside %s\n',current_spm);
             else Cnames={SPM.xCon(:).name};
             end
             if size(ss.EffectOfInterest_spm,1)==1
@@ -325,7 +330,7 @@ if ss.askn>1||~isfield(ss,'Localizer')||isempty(ss.Localizer),
                 [spm_data,SPM,Ec(nc)]=spm_ss_importspm(spm_data,current_spm);
 %                 load(ss.Localizer_spm{nc},'SPM');
 %                 SPM.swd=fileparts(ss.Localizer_spm{nc});
-                if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('warning: no target contrasts found inside %s\n',current_spm);
+                if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('Warning: no target contrasts found inside %s\n',current_spm);
                 else Cnames={SPM.xCon(:).name};
                 end
                 ic=[];for n1=nc:min(nc,length(ss.Localizer_contrasts)),temp=strmatch(ss.Localizer_contrasts{n1},Cnames,'exact');if numel(temp)~=1&&~isempty(strmatch('-not',ss.Localizer_contrasts{n1})),temp=-strmatch(ss.Localizer_contrasts{n1}(5:end),Cnames,'exact');end;if numel(temp)~=1,break;else ic=temp;end;end
@@ -350,7 +355,7 @@ if ss.askn>1||~isfield(ss,'Localizer')||isempty(ss.Localizer),
             ss.Localizer_contrasts={};
             load(ss.Localizer_spm{1},'SPM');
             SPM.swd=fileparts(ss.Localizer_spm{1});
-            if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('warning: no target contrasts found inside %s\n',ss.Localizer_spm{1});
+            if ~isfield(SPM,'xCon')||isempty(SPM.xCon), Cnames={}; fprintf('Warning: no target contrasts found inside %s\n',ss.Localizer_spm{1});
             else Cnames={SPM.xCon(:).name};
             end
             ic=[];for n1=1:length(Localizer_contrasts),temp=strmatch(Localizer_contrasts{n1},Cnames,'exact');if numel(temp)~=1&&~isempty(strmatch('-not',Localizer_contrasts{n1})),temp=-strmatch(Localizer_contrasts{n1}(5:end),Cnames,'exact');end;if numel(temp)~=1,break;else ic(n1)=temp;end;end
@@ -583,8 +588,10 @@ if ~isempty(default_cLcontrast),
                 ss.C(nnc)=struct('between',default_cLcontrast{nc},'within',I(ne,:),'name',[default_cLname{nc},' (',ss.EffectOfInterest_contrasts{1,ne},')']);
                 nnc=nnc+1;
             end
-            ss.C(nnc)=struct('between',default_cLcontrast{nc},'within',I,'name',[default_cLname{nc},' (',strcat(ss.EffectOfInterest_contrasts{1,:}),')']);
-            nnc=nnc+1;
+            % original script included this code which duplicated the
+            % contrast, so I commented it out.
+            %ss.C(nnc)=struct('between',default_cLcontrast{nc},'within',I,'name',[default_cLname{nc},' (',strcat(ss.EffectOfInterest_contrasts{1,:}),')']);
+            %nnc=nnc+1;
         else
             for ne1=1:numel(default_cRname),
                 for ne2=1:numel(default_cRname{ne1}),
@@ -640,41 +647,48 @@ if ~ss.files_selectmanually&&(~isfield(ss,'Localizer')||isempty(ss.Localizer)||~
 
         Inewc1={};Inewc2={};automaticcrossvalidation=0;
         % checks orthogonality & create contrasts/masks if necessary, separately for each experiment (SPM.mat file) involved
-        for nexp=1:numel(spm_data.SPMfiles),
-            iIc1=find(Ec1==nexp);iIc2=find(Ec2==nexp);
-            Inewc1{nexp}=Ic1(:,iIc1);Inewc2{nexp}=Ic2(:,iIc2);
-            if ~isempty(iIc1)&&~isempty(iIc2),        
-                o=spm_SpUtil('ConO',spm_data.SPM{nexp}.xX.X,[spm_data.SPM{nexp}.xCon([Ic1(:,iIc1),abs(Ic2(:,iIc2))]).c]);
-                o=permute(reshape(o(1:numel(iIc1)*ncross,numel(iIc1)*ncross+1:end),[ncross,numel(iIc1),ncross,numel(iIc2)]),[2,4,1,3]);
-                oo=o(:,:,1:ncross+1:ncross*ncross);
-                if ~all(oo(:))&&okorth&&ncross>1,
-                    str={'WARNING! You are choosing manual cross-validation, yet not all of the LOCALIZER and EFFECT OF INTEREST contrast pairs selected are orthogonal',...
-                        ['pwd = ',ss.swd],...
-                        'Are you sure you want to continue? (the results will likely be invalid)'};
-                    fidx=find(~oo);[fneffects,fnconjunction,fncross]=ind2sub(size(oo),fidx);for n1=1:numel(fneffects),disp(['EFFECT OF INTEREST ',ss.EffectOfInterest_contrasts{(fneffects(n1)-1)*ncross+fncross(n1)},' not orthogonal to LOCALIZER ',ss.Localizer_contrasts{(fnconjunction(n1)-1)*ncross+fncross(n1)}]); end
-                    disp(char(str));
-                    if ss.askn,if spm_input(str,posstr,'bd','stop|continue',[1,0],0),return;end;posstr='+1';end
-                    disp('...continuing anyway');
-                    okorth=0;
-                elseif ~all(oo(:)),
-                    if okorth,
-                        str={'LOCALIZER and EFFECT OF INTEREST contrast pairs are not orthogonal',...
+        % does not run if ss.orthogonalize is specified as "no"
+        if ~isfield(ss,'orthogonalize'), ss.orthogonalize="yes"; end
+        if ~(ss.orthogonalize == "no" || ss.orthogonalize == "No"),
+            for nexp=1:numel(spm_data.SPMfiles),
+                iIc1=find(Ec1==nexp);iIc2=find(Ec2==nexp);
+                Inewc1{nexp}=Ic1(:,iIc1);Inewc2{nexp}=Ic2(:,iIc2);
+                if ~isempty(iIc1)&&~isempty(iIc2),        
+                    o=spm_SpUtil('ConO',spm_data.SPM{nexp}.xX.X,[spm_data.SPM{nexp}.xCon([Ic1(:,iIc1),abs(Ic2(:,iIc2))]).c]);
+                    o=permute(reshape(o(1:numel(iIc1)*ncross,numel(iIc1)*ncross+1:end),[ncross,numel(iIc1),ncross,numel(iIc2)]),[2,4,1,3]);
+                    oo=o(:,:,1:ncross+1:ncross*ncross);
+                    if ~all(oo(:))&&okorth&&ncross>1,
+                        str={'WARNING! You are choosing manual cross-validation, yet not all of the LOCALIZER and EFFECT OF INTEREST contrast pairs selected are orthogonal',...
                             ['pwd = ',ss.swd],...
-                            'New contrasts (broken down by sessions) will be created now if they do not already exist'};
+                            'Are you sure you want to continue? (the results will likely be invalid)'};
+                        fidx=find(~oo);[fneffects,fnconjunction,fncross]=ind2sub(size(oo),fidx);for n1=1:numel(fneffects),disp(['EFFECT OF INTEREST ',ss.EffectOfInterest_contrasts{(fneffects(n1)-1)*ncross+fncross(n1)},' not orthogonal to LOCALIZER ',ss.Localizer_contrasts{(fnconjunction(n1)-1)*ncross+fncross(n1)}]); end
                         disp(char(str));
                         if ss.askn,if spm_input(str,posstr,'bd','stop|continue',[1,0],0),return;end;posstr='+1';end
+                        disp('...continuing anyway');
+                        okorth=0;
+                    elseif ~all(oo(:)),
+                        if okorth,
+                            str={'LOCALIZER and EFFECT OF INTEREST contrast pairs are not orthogonal',...
+                                ['pwd = ',ss.swd],...
+                                'New contrasts (broken down by sessions) will be created now if they do not already exist'};
+                            disp(char(str));
+                            if ss.askn,if spm_input(str,posstr,'bd','stop|continue',[1,0],0),return;end;posstr='+1';end
+                        end
+                        [spm_data.SPM{nexp},IcCV1,sess1]=spm_ss_crossvalidate_sessions(spm_data.SPM{nexp},Ic1(:,iIc1),0,'skip');
+                        [spm_data.SPM{nexp},IcCV2,sess2]=spm_ss_crossvalidate_sessions(spm_data.SPM{nexp},abs(Ic2(:,iIc2)),0,'skip');
+                        [nill,idxvalid1,idxvalid2]=intersect(sess1,sess2);
+                        if isempty(nill), error(['Subject #',num2str(np),' (',spm_data.SPMfiles{nexp},') not possible to cross-validate.']);
+                        else disp(['Subject ',num2str(np),' cross-validation across sessions ',num2str(nill(:)'),' in file ',spm_data.SPMfiles{nexp}]); end
+                        Inewc1{nexp}=IcCV1(:,idxvalid1,1)';%Ic1=Ic1(:);
+                        Inewc2{nexp}=(diag(sign(Ic2(:,iIc2)))*IcCV2(:,idxvalid2,2))';%Ic2=Ic2(:);
+                        okorth=0;
+                        automaticcrossvalidation=1;
                     end
-                    [spm_data.SPM{nexp},IcCV1,sess1]=spm_ss_crossvalidate_sessions(spm_data.SPM{nexp},Ic1(:,iIc1),0,'skip');
-                    [spm_data.SPM{nexp},IcCV2,sess2]=spm_ss_crossvalidate_sessions(spm_data.SPM{nexp},abs(Ic2(:,iIc2)),0,'skip');
-                    [nill,idxvalid1,idxvalid2]=intersect(sess1,sess2);
-                    if isempty(nill), error(['Subject #',num2str(np),' (',spm_data.SPMfiles{nexp},') not possible to cross-validate.']);
-                    else disp(['Subject ',num2str(np),' cross-validation across sessions ',num2str(nill(:)'),' in file ',spm_data.SPMfiles{nexp}]); end
-                    Inewc1{nexp}=IcCV1(:,idxvalid1,1)';%Ic1=Ic1(:);
-                    Inewc2{nexp}=(diag(sign(Ic2(:,iIc2)))*IcCV2(:,idxvalid2,2))';%Ic2=Ic2(:);
-                    okorth=0;
-                    automaticcrossvalidation=1;
                 end
             end
+        else 
+            str="Warning: Contrast orthogonalization has been skipped; effect of interest contrast results will be invalid\n";
+            fprintf(str);
         end
         if automaticcrossvalidation,
             % combines new cross-validated contrasts (possibly across multiple experiments)
@@ -702,9 +716,9 @@ if ~ss.files_selectmanually&&(~isfield(ss,'Localizer')||isempty(ss.Localizer)||~
             for ne=1:neffects,
                 ss.EffectOfInterest{np}{ne,nc}=fullfile(fileparts(ss.EffectOfInterest_spm{min(size(ss.EffectOfInterest_spm,1),ne),np}),['con_',num2str(Ic1((ne-1)*ncross+nc),'%04d'),fext]); 
                 if isfield(ss,'EffectOfInterest_contrasts_grandmeanscaling')&&isempty(dir(ss.EffectOfInterest{np}{ne,nc})) % create grand-mean scaled version
-                    fprintf('warning: file %s not found. creating grand-mean scaled contrast image\n',ss.EffectOfInterest{np}{ne,nc});
+                    fprintf('Warning: file %s not found. creating grand-mean scaled contrast image\n',ss.EffectOfInterest{np}{ne,nc});
                     gmscalelist=[gmscalelist; Ec1(ne), Ic1((ne-1)*ncross+nc)];
-                elseif isempty(dir(ss.EffectOfInterest{np}{ne,nc})), fprintf('warning: file %s not found. Trying .img contrast files\n',ss.EffectOfInterest{np}{ne,nc}); ss.EffectOfInterest{np}{ne,nc}=regexprep(ss.EffectOfInterest{np}{ne,nc},'\.nii$','.img'); 
+                elseif isempty(dir(ss.EffectOfInterest{np}{ne,nc})), fprintf('Warning: file %s not found. Trying .img contrast files\n',ss.EffectOfInterest{np}{ne,nc}); ss.EffectOfInterest{np}{ne,nc}=regexprep(ss.EffectOfInterest{np}{ne,nc},'\.nii$','.img'); 
                 end
             end
         end
@@ -745,5 +759,4 @@ save(fullfile(ss.swd,['SPM_ss_',ss.type,'.mat']),'ss');
 disp(['Analysis file saved: ',fullfile(ss.swd,['SPM_ss_',ss.type,'.mat'])]);
 
 end
-    
-    
+

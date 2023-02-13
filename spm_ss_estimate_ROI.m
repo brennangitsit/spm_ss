@@ -17,8 +17,7 @@ end
 cwd=pwd;
 
 % explicit mask
-if ~isempty(ss.ExplicitMasking),XM=spm_vol(char(ss.ExplicitMasking));else XM=[];end
-assert(any(numel(XM)==[0,1,ss.n]),'unexpected number of volumes (%d) in ExplicitMasking field',numel(XM)); % note: allows subject-specific ExplicitMasking files
+if ~isempty(ss.ExplicitMasking),XM=spm_vol(ss.ExplicitMasking);else XM=[];end
 
 % creates transformed measures
 neffects=size(ss.EffectOfInterest{1},1);
@@ -120,14 +119,14 @@ ss.PM1=ssPM1;
 
 % defines fROIs
 if ss.typen==2,
-    ss.PM=fullfile(ss.swd,['fROIs',ext1]);
+    ss.PM=['fROIs',ext1];
     disp('GcSS defining ROIs. Please wait...');
     a2=spm_vol(ss.PM2);
     b2=spm_read_vols(a2); 
     if ~isempty(XM),
         [XYZ{1},XYZ{2},XYZ{3}]=ndgrid(1:ss.refspace.masks{1}.dim(1),1:ss.refspace.masks{1}.dim(2),1:ss.refspace.masks{1}.dim(3));
         tXYZ=reshape(cat(4,XYZ{:}),[],3)';tXYZ=cat(1,tXYZ,ones(1,size(tXYZ,2))); % reference: world-coordinates for first localizer mask volume for first subject
-        tXM=double(shiftdim(any(reshape(spm_get_data(XM,pinv(XM(1).mat)*ss.refspace.masks{1}.mat*tXYZ)>0,[numel(XM),ss.refspace.masks{1}.dim(1:3)]),1),1));
+        tXM=reshape(double(spm_get_data(XM,pinv(XM.mat)*ss.refspace.masks{1}.mat*tXYZ)>0),ss.refspace.masks{1}.dim(1:3));
     else tXM=1;
     end
     b3=spm_ss_watershed(-b2,find(b2>=ss.overlap_thr_vox&tXM));
@@ -138,7 +137,6 @@ else
     ss.PM=ss.ManualROIs;
 end
 ss.VM=spm_vol(char(ss.PM));
-[ss.VM_roinames,ss.VM_roiids]=spm_ss_roilabels(ss.VM(1).fname);
 
 for n=1:ss.n 
     % frois to subject-space
@@ -153,23 +151,11 @@ for n=1:ss.n
     %elseif max(frois{n}(:))~=nrois, error('All subject-specific ROI files should contain the same number of ROIs'); 
     end
     if ~isempty(XM),
-        tXM=reshape(double(spm_get_data(XM(min(n,numel(XM))),pinv(XM(min(n,numel(XM))).mat)*ss.VN(idxk1).mat*tXYZ)>0),ss.VN(idxk1).dim(1:3));
+        tXM=reshape(double(spm_get_data(XM,pinv(XM.mat)*ss.VN(idxk1).mat*tXYZ)>0),ss.VN(idxk1).dim(1:3));
         frois{n}=tXM.*frois{n};
     end
     
-    % creates localizer files broken down by ROIs (optional)
-    extname=char(mlreportgen.utils.hash(fileread(vm.fname)));
-    for nk=reshape(find(idxk),1,[])
-        tN=reshape(spm_get_data(ss.VN(nk),pinv(ss.VN(nk).mat)*ss.VN(idxk1).mat*tXYZ),ss.VN(idxk1).dim(1:3));
-        tN(isnan(tN))=0;
-        a4=struct('fname',[regexprep(ss.PN{nk},['(_',extname,')?(\.nii$|\.img$)'],''),'_',extname,'.ROIs.nii'],'mat',ss.refspace.masks{n}.mat,'dim',ss.refspace.masks{n}.dim,'dt',[spm_type('uint16') spm_platform('bigend')],'descrip','localizer-by-parcel file','pinfo',[1;0;0]);
-        spm_write_vol(a4, reshape(frois{n},ss.VN(idxk1).dim(1:3)).*(tN>0));
-        if isempty(ss.VM_roinames), spm_jsonwrite([regexprep(ss.PN{nk},['(_',extname,')?(\.nii$|\.img$)'],''),'_',extname,'.ROIs.json'],struct('analysis_directory',ss.swd,'analysis_type',ss.type,'parcels_file',{cellstr(char(ss.ManualROIs))},'parcels_names',{arrayfun(@num2str,1:nrois,'uni',0)},'parcels_ids',1:nrois));
-        else spm_jsonwrite([regexprep(ss.PN{nk},['(_',extname,')?(\.nii$|\.img$)'],''),'_',extname,'.ROIs.json'],struct('analysis_directory',ss.swd,'analysis_type',ss.type,'parcels_file',{cellstr(char(ss.ManualROIs))},'parcels_names',{cellstr(char(ss.VM_roinames))},'parcels_ids',ss.VM_roiids));
-        end
-    end
-    
-    % creates QA images in subject-space (optional)
+    % creates QA images in subject-space
     a4=struct('fname',[sprintf('QA_parcels.%s',ss.PV_subjnames{n}),ext1],'mat',ss.refspace.masks{n}.mat,'dim',ss.refspace.masks{n}.dim,'dt',[spm_type('float32') spm_platform('bigend')],'descrip',sprintf('QA display parcels for subject#%d',n),'pinfo',[1;0;0]);
     spm_write_vol(a4,reshape(frois{n},ss.VN(idxk1).dim(1:3)));
     a4=struct('fname',[sprintf('QA_effects.%s',ss.PV_subjnames{n}),ext1],'mat',ss.refspace.masks{n}.mat,'dim',ss.refspace.masks{n}.dim,'dt',[spm_type('float32') spm_platform('bigend')],'descrip',sprintf('QA display average all effects for subject#%d',n),'pinfo',[1;0;0]);
@@ -192,6 +178,7 @@ for n=1:ss.n
     tN=reshape(mean(tN,1),ss.VN(idxk1).dim(1:3));
     spm_write_vol(a4,tN);
 end
+[ss.VM_roinames,ss.VM_roiids]=spm_ss_roilabels(ss.VM(1).fname);
 if isempty(ss.VM_roinames), ss.VM_roinames=arrayfun(@num2str,1:nrois,'uni',0); ss.VM_roiids=1:nrois; 
 else nrois=numel(ss.VM_roiids); 
 end
@@ -286,7 +273,7 @@ for nroi=1:nrois,
         Bplane(:,:,nroi)=b;
         Cplane(:,nroi)=iC;
         Eplane(:,:,nroi)=ee;
-    end 
+    end
     Pplane(nroi)=mean(N);
     Oplane(nroi)=sN;
     Zplane(:,:,nroi)=Y;

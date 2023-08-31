@@ -646,7 +646,7 @@ if ~ss.files_selectmanually&&(~isfield(ss,'Localizer')||isempty(ss.Localizer)||~
         if size(Ic1,1)~=ncross, error('Mismatched number of partitions between LOCALIZER and EFFECT OF INTEREST contrasts'); end
 
         Inewc1={};Inewc2={};automaticcrossvalidation=0;
-        % checks orthogonality & create contrasts/masks if necessary, separately for each experiment (SPM.mat file) involved
+        % check orthogonality & create contrasts/masks if necessary, separately for each experiment (SPM.mat file) involved
         % does not run if ss.orthogonalize is specified as "no"
         if ~isfield(ss,'orthogonalize'), ss.orthogonalize="yes"; end
         if ~(ss.orthogonalize == "no" || ss.orthogonalize == "No"),

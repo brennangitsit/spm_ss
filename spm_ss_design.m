@@ -25,7 +25,8 @@ function ss=spm_ss_design(ss)
 %                       when using subject-specific ROI files, ss.ManualROIs is a cell array with ss.ManualROIs{i} defining the ROI file name for subject i 
 % ss.smooth             (for ss.type=='voxel' or ss.type=='GcSS') Smoothing kernel (FWHM mm) (note: for automatically-defined ROIs this amount of smoothing is applied to the overlap map before applying a watershed partitioning; for voxel-based analyses this amount of smoothing determines the smoothing-equivalent kernel h)
 % ss.overlap_thr_vox    (for ss.type=='GcSS') voxel-level minimal proportion of subjects overlap when constructing ROI parcellation (default .10) 
-% ss.overlap_thr_roi    (for ss.type=='GcSS'|ss.type=='mROI') roi-level minimal proportion of subjects overlap when reporting ROI results (default .5) 
+% ss.overlap_thr_roi    (for ss.type=='GcSS'|ss.type=='mROI') roi-level minimal proportion of subjects overlap when reporting ROI results (default .5)
+% ss.homologous         (for ss.type=='GcSS') 1/0 creates bilaterally symmetric ROI parcellation by flipping the overlap map across the sagittal plane and averaging with the original before watershed (default 0)
 % ss.overwrite          1/0 overwrites localizer files if they exist (default 0)
 % ss.model              Between-subjects model type (1: one-sample t-test; 2: two-sample t-test; 3: multiple regression) (note: this field is disregarded if the design matrix ss.X below is directly defined) 
 % ss.estimation         Between-subjects model estimation type ('ReML','OLS') (Restricted Maximum Likelihood estimation vs. Ordinary Least Squares estimation; default 'ReML')
@@ -451,7 +452,19 @@ if (ss.typen==2) && (ss.askn>1||~isfield(ss,'overlap_thr_vox')||isempty(ss.overl
     end
 end
 
-if (ss.typen>1) && (ss.askn>1||~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi)), 
+% configure homologous (bilaterally symmetric) parcellation option for GcSS
+if (ss.typen==2) && (ss.askn>1||~isfield(ss,'homologous')||isempty(ss.homologous)),
+    if ~isfield(ss,'homologous')||isempty(ss.homologous), ss.homologous=0; end
+    if ss.askn,
+        if isnumeric(posstr)&&isempty(findobj(0,'tag','Interactive')), spm('CreateIntWin'); end;
+        str='Create homologous (bilaterally symmetric) ROI parcellation?';
+        disp(str);
+        ss.homologous=spm_input(str,posstr,'b','no|yes',[0,1],1+ss.homologous);posstr='+1';
+    end
+end
+if ~isfield(ss,'homologous'), ss.homologous=0; end
+
+if (ss.typen>1) && (ss.askn>1||~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi)),
     if ~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi), ss.overlap_thr_roi=.50; end
     if ss.askn,
         if isnumeric(posstr)&&isempty(findobj(0,'tag','Interactive')), spm('CreateIntWin'); end;

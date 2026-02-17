@@ -70,6 +70,7 @@ The central data structure. Key fields (fully documented in `spm_ss_design.m` he
 - `ss.Localizer_thr_type` / `ss.Localizer_thr_p` - Thresholding method and value
 - `ss.overlap_thr_vox` / `ss.overlap_thr_roi` - Overlap thresholds for GcSS
 - `ss.homologous` - (GcSS only) 1/0 creates bilaterally symmetric parcels by sagittal flip+average of overlap map before watershed
+- `ss.crossvalidation` - Cross-validation strategy: `'none'`, `'kfold'`, `'loso'`, or `'firstsess'` (default `'kfold'`)
 - `ss.model` - Between-subjects model (1=one-sample t, 2=two-sample t, 3=regression)
 - `ss.estimation` - `'OLS'` or `'ReML'`
 - `ss.ask` - GUI interaction level (`'none'`, `'missing'`, `'all'`)
@@ -78,9 +79,35 @@ The central data structure. Key fields (fully documented in `spm_ss_design.m` he
 
 Estimation produces in `ss.swd`: `SPM_ss*.mat`, brain volumes (`*beta.img`, `*overlap.img`, `*T_####.img`, `*P_####.img`, `*Pfdr_####.img`), and CSV reports (`*data.csv`, `*results_####.Stats.csv`).
 
+## Cross-Validation
+
+The `ss.crossvalidation` parameter controls both voxel selection orthogonalization and (for GcSS) parcellation strategy:
+
+| Value | Orthogonalization | Parcellation (GcSS) |
+|-------|-------------------|---------------------|
+| `'none'` | Skipped (use for pre-orthogonalized contrasts) | Standard parcellation from all subjects |
+| `'kfold'` | Auto-creates SESSION/ORTH_TO_SESSION contrasts when needed | Standard parcellation; k-fold averaging of effects |
+| `'loso'` | Auto-orthogonalization | Leave-one-subject-out parcels (N-1 subjects per subject) |
+| `'firstsess'` | Uses sessions 2+ for localizer, session 1 for effects | Parcellation from sessions 2+ only |
+
+**Default:** `'kfold'`
+
+**Output files for `'loso'`:**
+- `Overlap_loso##.nii` - Overlap map leaving out subject ##
+- `fROIs_loso##.nii` - LOSO parcels for subject ##
+- `Overlap.nii`, `fROIs.nii` - Full parcellation (for visualization)
+
+**Usage:**
+```matlab
+ss.crossvalidation = 'none';      % no orthogonalization (contrasts already orthogonal)
+ss.crossvalidation = 'kfold';     % automatic k-fold cross-validation (default)
+ss.crossvalidation = 'loso';      % leave-one-subject-out parcellation
+ss.crossvalidation = 'firstsess'; % first-session holdout (Fedorenko et al. method)
+```
+
 ## Conventions
 
-- Cross-validation is handled automatically when localizer and effect-of-interest contrasts are non-orthogonal (same session data).
+- When `ss.crossvalidation = 'kfold'` (default), orthogonalization is automatic when localizer and effect-of-interest contrasts share session data.
 - Functions use `spm_ss init silent` at the top to check for the evlab17 package (non-fatal if missing).
 - GUI interaction uses SPM's `spm_input` and `spm_select` functions.
 - Some functions use MATLAB persistent variables for state across interactive sessions.

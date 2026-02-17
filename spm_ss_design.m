@@ -24,9 +24,26 @@ function ss=spm_ss_design(ss)
 % ss.ManualROIs         (for ss.type=='mROI') manually-defined ROI file name (ROI image should contain integer numbers, from 1 to m, where m is the number of ROIs)
 %                       when using subject-specific ROI files, ss.ManualROIs is a cell array with ss.ManualROIs{i} defining the ROI file name for subject i 
 % ss.smooth             (for ss.type=='voxel' or ss.type=='GcSS') Smoothing kernel (FWHM mm) (note: for automatically-defined ROIs this amount of smoothing is applied to the overlap map before applying a watershed partitioning; for voxel-based analyses this amount of smoothing determines the smoothing-equivalent kernel h)
-% ss.overlap_thr_vox    (for ss.type=='GcSS') voxel-level minimal proportion of subjects overlap when constructing ROI parcellation (default .10) 
+% ss.overlap_thr_vox    (for ss.type=='GcSS') voxel-level minimal proportion of subjects overlap when constructing ROI parcellation (default .10)
 % ss.overlap_thr_roi    (for ss.type=='GcSS'|ss.type=='mROI') roi-level minimal proportion of subjects overlap when reporting ROI results (default .5)
+% ss.boundary_roi       (for ss.type=='GcSS') parcel boundary behavior: 'separated' (1-voxel gaps, Fedorenko et al. 2010) or 'contiguous' (parcels adjoin, small parcels merged/removed) (default 'separated')
+% ss.minsize_roi        (for ss.type=='GcSS' with boundary_roi='contiguous') minimum parcel size in voxels; smaller parcels merged into neighbors or removed if isolated (default 0)
 % ss.homologous         (for ss.type=='GcSS') 1/0 creates bilaterally symmetric ROI parcellation by flipping the overlap map across the sagittal plane and averaging with the original before watershed (default 0)
+% ss.crossvalidation    Cross-validation strategy (default 'kfold')
+%                       Options:
+%                       - 'none': No automatic orthogonalization. Use when contrasts are already
+%                         orthogonal or when you want to skip cross-validation entirely.
+%                         WARNING: Results may be invalid if localizer and effects share data.
+%                       - 'kfold': Standard cross-validation. Automatically creates SESSION/ORTH_TO_SESSION
+%                         contrasts when localizer and effects are non-orthogonal. For GcSS, all subjects
+%                         share the same parcels; k-fold averaging applies to effect extraction.
+%                       - 'loso': (GcSS only) Leave-one-subject-out parcellation. Each subject's effects
+%                         are extracted using parcels computed from N-1 other subjects. Requires N>2.
+%                         Output: Overlap_loso##.nii, fROIs_loso##.nii per subject.
+%                       - 'firstsess': (GcSS only) First-session holdout mode. Parcellation uses sessions
+%                         2+ (ORTH_TO_SESSION01), effect extraction uses session 1 (SESSION01) only.
+%                         Replicates the original Fedorenko et al. methodology. No k-fold averaging.
+%
 % ss.overwrite          1/0 overwrites localizer files if they exist (default 0)
 % ss.model              Between-subjects model type (1: one-sample t-test; 2: two-sample t-test; 3: multiple regression) (note: this field is disregarded if the design matrix ss.X below is directly defined) 
 % ss.estimation         Between-subjects model estimation type ('ReML','OLS') (Restricted Maximum Likelihood estimation vs. Ordinary Least Squares estimation; default 'ReML')
@@ -452,6 +469,14 @@ if (ss.typen==2) && (ss.askn>1||~isfield(ss,'overlap_thr_vox')||isempty(ss.overl
     end
 end
 
+% parcel boundary behavior for GcSS
+if ss.typen==2 && (~isfield(ss,'boundary_roi')||isempty(ss.boundary_roi))
+    ss.boundary_roi='separated';
+end
+if ss.typen==2 && (~isfield(ss,'minsize_roi')||isempty(ss.minsize_roi))
+    ss.minsize_roi=0;
+end
+
 % configure homologous (bilaterally symmetric) parcellation option for GcSS
 if (ss.typen==2) && (ss.askn>1||~isfield(ss,'homologous')||isempty(ss.homologous)),
     if ~isfield(ss,'homologous')||isempty(ss.homologous), ss.homologous=0; end
@@ -463,6 +488,28 @@ if (ss.typen==2) && (ss.askn>1||~isfield(ss,'homologous')||isempty(ss.homologous
     end
 end
 if ~isfield(ss,'homologous'), ss.homologous=0; end
+
+% configure cross-validation strategy
+if ss.askn>1||~isfield(ss,'crossvalidation')||isempty(ss.crossvalidation),
+    if ~isfield(ss,'crossvalidation')||isempty(ss.crossvalidation), ss.crossvalidation='kfold'; end
+    if ss.askn,
+        if isnumeric(posstr)&&isempty(findobj(0,'tag','Interactive')), spm('CreateIntWin'); end;
+        str='Cross-validation strategy?';
+        disp(str);
+        if ss.typen==2  % GcSS: all options available
+            cv_options = {'none', 'kfold', 'loso', 'firstsess'};
+            cv_labels = 'none|kfold|loso|firstsess';
+        else  % voxel/mROI: only none and kfold
+            cv_options = {'none', 'kfold'};
+            cv_labels = 'none|kfold';
+        end
+        cv_current = find(strcmpi(ss.crossvalidation, cv_options), 1);
+        if isempty(cv_current), cv_current = 2; end  % default to kfold
+        ss.crossvalidation = cv_options{spm_input(str, posstr, 'm', cv_labels, 1:numel(cv_options), cv_current)};
+        posstr = '+1';
+    end
+end
+if ~isfield(ss,'crossvalidation'), ss.crossvalidation='kfold'; end
 
 if (ss.typen>1) && (ss.askn>1||~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi)),
     if ~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi), ss.overlap_thr_roi=.50; end
@@ -660,13 +707,12 @@ if ~ss.files_selectmanually&&(~isfield(ss,'Localizer')||isempty(ss.Localizer)||~
 
         Inewc1={};Inewc2={};automaticcrossvalidation=0;
         % check orthogonality & create contrasts/masks if necessary, separately for each experiment (SPM.mat file) involved
-        % does not run if ss.orthogonalize is specified as "no"
-        if ~isfield(ss,'orthogonalize'), ss.orthogonalize="yes"; end
-        if ~(ss.orthogonalize == "no" || ss.orthogonalize == "No"),
+        % skipped if ss.crossvalidation is 'none'
+        if ~strcmpi(ss.crossvalidation, 'none'),
             for nexp=1:numel(spm_data.SPMfiles),
                 iIc1=find(Ec1==nexp);iIc2=find(Ec2==nexp);
                 Inewc1{nexp}=Ic1(:,iIc1);Inewc2{nexp}=Ic2(:,iIc2);
-                if ~isempty(iIc1)&&~isempty(iIc2),        
+                if ~isempty(iIc1)&&~isempty(iIc2),
                     o=spm_SpUtil('ConO',spm_data.SPM{nexp}.xX.X,[spm_data.SPM{nexp}.xCon([Ic1(:,iIc1),abs(Ic2(:,iIc2))]).c]);
                     o=permute(reshape(o(1:numel(iIc1)*ncross,numel(iIc1)*ncross+1:end),[ncross,numel(iIc1),ncross,numel(iIc2)]),[2,4,1,3]);
                     oo=o(:,:,1:ncross+1:ncross*ncross);
@@ -699,9 +745,8 @@ if ~ss.files_selectmanually&&(~isfield(ss,'Localizer')||isempty(ss.Localizer)||~
                     end
                 end
             end
-        else 
-            str="Warning: Contrast orthogonalization has been skipped; effect of interest contrast results will be invalid\n";
-            fprintf(str);
+        else
+            fprintf('Cross-validation: none (orthogonalization skipped)\n');
         end
         if automaticcrossvalidation,
             % combines new cross-validated contrasts (possibly across multiple experiments)

@@ -40,9 +40,10 @@ function ss=spm_ss_design(ss)
 %                       - 'loso': (GcSS only) Leave-one-subject-out parcellation. Each subject's effects
 %                         are extracted using parcels computed from N-1 other subjects. Requires N>2.
 %                         Output: Overlap_loso##.nii, fROIs_loso##.nii per subject.
-%                       - 'firstsess': (GcSS only) First-session holdout mode. Parcellation uses sessions
-%                         2+ (ORTH_TO_SESSION01), effect extraction uses session 1 (SESSION01) only.
-%                         Replicates the original Fedorenko et al. methodology. No k-fold averaging.
+%                       - 'firstsess': (GcSS or mROI) First-session holdout mode. fROI definition (GcSS
+%                         parcellation, or localizer masking within manually-defined ROIs for mROI) uses
+%                         sessions 2+ (ORTH_TO_SESSION01); effect extraction uses session 1 (SESSION01)
+%                         only. Replicates the original Fedorenko et al. methodology. No k-fold averaging.
 %
 % ss.overwrite          1/0 overwrites localizer files if they exist (default 0)
 % ss.model              Between-subjects model type (1: one-sample t-test; 2: two-sample t-test; 3: multiple regression) (note: this field is disregarded if the design matrix ss.X below is directly defined) 
@@ -499,7 +500,10 @@ if ss.askn>1||~isfield(ss,'crossvalidation')||isempty(ss.crossvalidation),
         if ss.typen==2  % GcSS: all options available
             cv_options = {'none', 'kfold', 'loso', 'firstsess'};
             cv_labels = 'none|kfold|loso|firstsess';
-        else  % voxel/mROI: only none and kfold
+        elseif ss.typen==3  % mROI: firstsess also available (no automatic parcellation involved, so no loso)
+            cv_options = {'none', 'kfold', 'firstsess'};
+            cv_labels = 'none|kfold|firstsess';
+        else  % voxel: only none and kfold
             cv_options = {'none', 'kfold'};
             cv_labels = 'none|kfold';
         end
@@ -509,7 +513,14 @@ if ss.askn>1||~isfield(ss,'crossvalidation')||isempty(ss.crossvalidation),
         posstr = '+1';
     end
 end
+
 if ~isfield(ss,'crossvalidation'), ss.crossvalidation='kfold'; end
+
+valid_cv = {'none','kfold','loso','firstsess'};
+if ~any(strcmpi(ss.crossvalidation, valid_cv))
+    error('spm_ss:badCV','Unrecognised crossvalidation "%s". Valid: %s', ...
+        ss.crossvalidation, strjoin(valid_cv,', '));
+end
 
 if (ss.typen>1) && (ss.askn>1||~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi)),
     if ~isfield(ss,'overlap_thr_roi')||isempty(ss.overlap_thr_roi), ss.overlap_thr_roi=.50; end

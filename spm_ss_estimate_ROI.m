@@ -90,10 +90,10 @@ if ~isfield(ss, 'crossvalidation'), ss.crossvalidation = 'kfold'; end
 
 % Determine which mode to use
 use_loso = (ss.typen == 2) && strcmpi(ss.crossvalidation, 'loso') && (ss.n > 2);
-use_firstsess = (ss.typen == 2) && strcmpi(ss.crossvalidation, 'firstsess');
+use_firstsess = (ss.typen == 2 || ss.typen == 3) && strcmpi(ss.crossvalidation, 'firstsess');
 
 if use_firstsess
-    fprintf('Cross-validation: firstsess (parcellation/localization uses sessions 2+, effects from session 1 only)\n');
+    fprintf('Cross-validation: firstsess (fROI definition uses sessions 2+, effects from session 1 only)\n');
 elseif use_loso
     fprintf('Cross-validation: loso (each subject gets parcels computed from N-1 other subjects)\n');
 else

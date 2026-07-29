@@ -81,14 +81,14 @@ Estimation produces in `ss.swd`: `SPM_ss*.mat`, brain volumes (`*beta.img`, `*ov
 
 ## Cross-Validation
 
-The `ss.crossvalidation` parameter controls both voxel selection orthogonalization and (for GcSS) parcellation strategy:
+The `ss.crossvalidation` parameter controls both voxel selection orthogonalization and (for GcSS/mROI) fROI definition strategy:
 
-| Value | Orthogonalization | Parcellation (GcSS) |
-|-------|-------------------|---------------------|
-| `'none'` | Skipped (use for pre-orthogonalized contrasts) | Standard parcellation from all subjects |
-| `'kfold'` | Auto-creates SESSION/ORTH_TO_SESSION contrasts when needed | Standard parcellation; k-fold averaging of effects |
-| `'loso'` | Auto-orthogonalization | Leave-one-subject-out parcels (N-1 subjects per subject) |
-| `'firstsess'` | Uses sessions 2+ for localizer, session 1 for effects | Parcellation from sessions 2+ only |
+| Value | Orthogonalization | Parcellation (GcSS) | fROI definition (mROI) |
+|-------|-------------------|---------------------|-------------------------|
+| `'none'` | Skipped (use for pre-orthogonalized contrasts) | Standard parcellation from all subjects | Localizer uses all sessions |
+| `'kfold'` | Auto-creates SESSION/ORTH_TO_SESSION contrasts when needed | Standard parcellation; k-fold averaging of effects | k-fold averaging of localizer/effects |
+| `'loso'` | Auto-orthogonalization | Leave-one-subject-out parcels (N-1 subjects per subject) | Not supported (GcSS only) |
+| `'firstsess'` | Uses sessions 2+ for localizer, session 1 for effects | Parcellation from sessions 2+ only | Localizer mask (within manual ROIs) from sessions 2+ only |
 
 **Default:** `'kfold'`
 
@@ -102,7 +102,7 @@ The `ss.crossvalidation` parameter controls both voxel selection orthogonalizati
 ss.crossvalidation = 'none';      % no orthogonalization (contrasts already orthogonal)
 ss.crossvalidation = 'kfold';     % automatic k-fold cross-validation (default)
 ss.crossvalidation = 'loso';      % leave-one-subject-out parcellation
-ss.crossvalidation = 'firstsess'; % first-session holdout (Fedorenko et al. method)
+ss.crossvalidation = 'firstsess'; % first-session holdout (Fedorenko et al. method); GcSS or mROI only
 ```
 
 ## Conventions

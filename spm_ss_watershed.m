@@ -72,7 +72,7 @@ if contiguous && minsize>0
         if nvox>0 && nvox<minsize
             % Find neighboring labels using 26-connectivity
             mask=D==label;
-            dilated=imdilate(mask,ones(3,3,3));
+            dilated=convn(double(mask),ones(3,3,3),'same')>0;
             border=dilated & ~mask & D>0;
             neighbor_labels=D(border);
             if ~isempty(neighbor_labels)
